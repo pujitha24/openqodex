@@ -70,7 +70,7 @@ export function agentFreePath(): string {
 export function env(s: Sandbox, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   // No update worker from a test run through the launcher: it would reach
   // the registry and leave update.json behind. self-update.test.ts turns it on.
-  const e: NodeJS.ProcessEnv = { ...process.env, HOME: s.home, OPENQODEX_HOME: s.oqHome, OPENQODEX_AUTO_UPDATE: "0", PATH: agentFreePath() };
+  const e: NodeJS.ProcessEnv = { ...process.env, HOME: s.home, OPENQODEX_HOME: s.oqHome, OPENQODEX_AUTO_UPDATE: "0", OPENQODEX_APPLICATIONS_DIR: join(s.home, "Applications"), PATH: agentFreePath() };
   delete e.OPENQODEX_SKIP;
   for (const key of AGENT_ENV) delete e[key];
   return { ...e, ...extra };

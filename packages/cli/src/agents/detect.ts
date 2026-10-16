@@ -38,10 +38,12 @@ function clineExtension(home: string): boolean {
 
 // An agent counts when its program is on PATH or the folder it reads its
 // settings from exists: CLAUDE_CONFIG_DIR and CODEX_HOME when set (homes.ts).
+// Cursor is also found in the applications folder, /Applications unless
+// OPENQODEX_APPLICATIONS_DIR names another (the tests point it at an empty one).
 export function detectAgents(home: string = homedir()): AgentId[] {
   const found: AgentId[] = [];
   if (onPath("claude") || existsSync(claudeHome(home))) found.push("claude-code");
-  if (existsSync(join(home, ".cursor")) || existsSync("/Applications/Cursor.app")) found.push("cursor");
+  if (existsSync(join(home, ".cursor")) || existsSync(join(process.env.OPENQODEX_APPLICATIONS_DIR || "/Applications", "Cursor.app"))) found.push("cursor");
   if (onPath("codex") || existsSync(codexHome(home))) found.push("codex");
   if (existsSync(join(home, ".cline")) || clineExtension(home)) found.push("cline");
   return found;
