@@ -664,9 +664,12 @@ export async function installTool(
   if (!recipe) throw new InstallError("failed", `${tool} is not in the toolchain table`);
   const place = opts.place ?? homePlace();
   const root = place.root;
-  const runtime = await missingRuntime(recipe);
+  // The runtime probe keeps its state in the place's cache folder (the
+  // OpenQodex home's cache on the laptop, which is the default probe home).
+  const check = checkRuntime(recipe, join(place.cache, "runtime-probe"));
+  const runtime = (await check).reason;
   if (runtime) throw new InstallError("not_installed", runtime);
-  if (isInstalled(root, tool, recipe)) return resolvedTool(root, tool, recipe);
+  if (isInstalled(root, tool, recipe)) return resolvedTool(root, tool, recipe, check);
   const unsupported = unsupportedReason(table, recipe);
   if (unsupported) throw new InstallError("not_installed", unsupported);
   const dir = ensureWritable(place, tool);
@@ -685,7 +688,7 @@ export async function installTool(
       }
       return published;
     });
-    if (result !== "lost_lock" && isInstalled(root, tool, recipe)) return resolvedTool(root, tool, recipe);
+    if (result !== "lost_lock" && isInstalled(root, tool, recipe)) return resolvedTool(root, tool, recipe, check);
   }
   throw new InstallError("failed", "install failed: another install kept taking the lock");
 }

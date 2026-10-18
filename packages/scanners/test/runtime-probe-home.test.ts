@@ -209,3 +209,20 @@ describe("an unreadable Go environment file makes the whole check reject", () =>
     expect(found.reason).toMatch(/go\/env/);
   }, 120_000);
 });
+
+describe("a strict check writes its runtime probes into the OpenQodex home", () => {
+  const haveGo = spawnSync("go", ["version"], { encoding: "utf8" }).status === 0;
+
+  it.skipIf(!haveGo)("leaves the OpenQodex home empty when it checks a scanner that needs Go", () => {
+    const oqHome = tempDir("oq-probe-oqhome-");
+    const root = join(tempDir("oq-probe-root-"), "tools");
+    const env = envWith(tempDir("oq-probe-home-"), { OPENQODEX_HOME: oqHome });
+    // Nothing is installed in the root, so the check ends at "not installed"
+    // after it has probed for Go: no download is needed.
+    const code = `import { checkScanners } from ${JSON.stringify(DIST)}; const r = await checkScanners({ installRoot: ${JSON.stringify(root)}, require: ["golangci"] }); process.stdout.write(JSON.stringify(r.missing));`;
+    const p = spawnSync(process.execPath, ["--input-type=module", "-e", code], { env, encoding: "utf8", timeout: 120_000 });
+    expect(p.status, p.stderr).toBe(0);
+    expect(JSON.parse(p.stdout)).toHaveLength(1);
+    expect(readdirSync(oqHome)).toEqual([]);
+  }, 180_000);
+});

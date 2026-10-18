@@ -97,12 +97,19 @@ export async function checkScanners(opts: {
   const tools: PreinstallTool[] = [];
   // One at a time: a check case is a real scan, and several heavy scanners
   // at once could pass their timeouts on a small build machine.
-  for (const scanner of required(opts.require)) tools.push(await checkOne(scanner, root, opts));
+  // The runtime probes' state goes in a temporary folder removed at the end,
+  // not in the OpenQodex home.
+  const probeHome = mkdtempSync(join(tmpdir(), "openqodex-probe-"));
+  try {
+    for (const scanner of required(opts.require)) tools.push(await checkOne(scanner, root, probeHome, opts));
+  } finally {
+    rmSync(probeHome, { recursive: true, force: true });
+  }
   const missing = tools.filter((t) => !t.ok).map((t) => `${t.scanner}: ${t.detail}`);
   return { ok: missing.length === 0, missing, tools };
 }
 
-async function checkOne(scanner: ScannerSource, root: string, opts: { onProgress?: (line: string) => void; installFailures?: Map<ScannerSource, string> }): Promise<PreinstallTool> {
+async function checkOne(scanner: ScannerSource, root: string, probeHome: string, opts: { onProgress?: (line: string) => void; installFailures?: Map<ScannerSource, string> }): Promise<PreinstallTool> {
   if (scanner.startsWith("custom:")) {
     return { scanner, version: null, ok: false, detail: "a custom scanner is never preinstalled: it runs only after `openqodex trust` approves it in its repository" };
   }
@@ -112,7 +119,7 @@ async function checkOne(scanner: ScannerSource, root: string, opts: { onProgress
   const recipe = table.tools[scanner];
   if (!recipe) return { scanner, version: null, ok: false, detail: "no install recipe; this build cannot run it" };
   const version = recipe.version;
-  const runtime = await missingRuntime(recipe);
+  const runtime = await missingRuntime(recipe, join(probeHome, "runtime-probe"));
   if (runtime) return { scanner, version, ok: false, detail: runtime };
   if (!isInstalled(root, scanner, recipe)) {
     const why = opts.installFailures?.get(scanner) ?? unsupportedReason(table, recipe) ?? `not installed at ${version}`;
